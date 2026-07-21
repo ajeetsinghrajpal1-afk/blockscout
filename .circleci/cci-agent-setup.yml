@@ -1,0 +1,43 @@
+version: 2.1
+
+workflows:
+  cci-agent-setup:
+    jobs:
+      - cci-agent-setup
+
+jobs:
+  cci-agent-setup:
+    docker:
+      - image: hexpm/elixir:1.17.3-erlang-27.3.4-ubuntu-jammy-20240808
+        environment:
+          MIX_ENV: test
+          PGPASSWORD: postgres
+          PGUSER: postgres
+          PGHOST: localhost
+      - image: cimg/postgres:16.3
+        environment:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: explorer_test
+    steps:
+      - checkout
+      - run:
+          name: Install hex and rebar
+          command: |
+            mix local.hex --force
+            mix local.rebar --force
+      - restore_cache:
+          keys:
+            - v1-mix-deps-{{ checksum "mix.lock" }}
+            - v1-mix-deps-
+      - run:
+          name: Fetch dependencies
+          command: mix deps.get
+      - save_cache:
+          key: v1-mix-deps-{{ checksum "mix.lock" }}
+          paths:
+            - deps
+            - _build
+      - run:
+          name: Compile
+          command: mix compile
